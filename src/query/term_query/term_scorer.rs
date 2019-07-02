@@ -6,19 +6,19 @@ use crate::Score;
 use crate::fieldnorm::FieldNormReader;
 use crate::postings::Postings;
 use crate::postings::SegmentPostings;
-use crate::query::bm25::BM25Weight;
+use crate::query::ScoringFunction;
 
 pub struct TermScorer {
     postings: SegmentPostings,
     fieldnorm_reader: FieldNormReader,
-    similarity_weight: BM25Weight,
+    similarity_weight: Box<dyn ScoringFunction>,
 }
 
 impl TermScorer {
     pub fn new(
         postings: SegmentPostings,
         fieldnorm_reader: FieldNormReader,
-        similarity_weight: BM25Weight,
+        similarity_weight: Box<dyn ScoringFunction>,
     ) -> TermScorer {
         TermScorer {
             postings,

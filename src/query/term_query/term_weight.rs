@@ -2,8 +2,8 @@ use super::term_scorer::TermScorer;
 use crate::core::SegmentReader;
 use crate::docset::DocSet;
 use crate::postings::SegmentPostings;
-use crate::query::bm25::BM25Weight;
 use crate::query::explanation::does_not_match;
+use crate::query::ScoringFunction;
 use crate::query::Weight;
 use crate::query::{Explanation, Scorer};
 use crate::schema::IndexRecordOption;
@@ -14,7 +14,7 @@ use crate::{Result, SkipResult};
 pub struct TermWeight {
     term: Term,
     index_record_option: IndexRecordOption,
-    similarity_weight: BM25Weight,
+    similarity_weight: Box<dyn ScoringFunction>,
 }
 
 impl Weight for TermWeight {
@@ -49,7 +49,7 @@ impl TermWeight {
     pub fn new(
         term: Term,
         index_record_option: IndexRecordOption,
-        similarity_weight: BM25Weight,
+        similarity_weight: Box<dyn ScoringFunction>,
     ) -> TermWeight {
         TermWeight {
             term,

@@ -1,7 +1,7 @@
 use crate::docset::{DocSet, SkipResult};
 use crate::fieldnorm::FieldNormReader;
 use crate::postings::Postings;
-use crate::query::bm25::BM25Weight;
+use crate::query::ScoringFunction;
 use crate::query::{Intersection, Scorer};
 use crate::DocId;
 
@@ -48,7 +48,7 @@ pub struct PhraseScorer<TPostings: Postings> {
     right: Vec<u32>,
     phrase_count: u32,
     fieldnorm_reader: FieldNormReader,
-    similarity_weight: BM25Weight,
+    similarity_weight: Box<dyn ScoringFunction>,
     score_needed: bool,
 }
 
@@ -120,7 +120,7 @@ fn intersection(left: &mut [u32], right: &[u32]) -> usize {
 impl<TPostings: Postings> PhraseScorer<TPostings> {
     pub fn new(
         term_postings: Vec<(usize, TPostings)>,
-        similarity_weight: BM25Weight,
+        similarity_weight: Box<dyn ScoringFunction>,
         fieldnorm_reader: FieldNormReader,
         score_needed: bool,
     ) -> PhraseScorer<TPostings> {

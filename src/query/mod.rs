@@ -6,6 +6,7 @@ mod all_query;
 mod automaton_weight;
 mod bitset;
 mod bm25;
+mod scoringfunction;
 mod boolean_query;
 mod empty_query;
 mod exclude;
@@ -53,6 +54,7 @@ pub use self::regex_query::RegexQuery;
 pub use self::reqopt_scorer::RequiredOptionalScorer;
 pub use self::scorer::ConstScorer;
 pub use self::scorer::Scorer;
+pub use self::scoringfunction::ScoringFunction;
 pub use self::term_query::TermQuery;
 pub use self::weight::Weight;
 

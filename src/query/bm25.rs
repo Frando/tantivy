@@ -1,5 +1,6 @@
 use crate::fieldnorm::FieldNormReader;
 use crate::query::Explanation;
+use crate::query::ScoringFunction;
 use crate::Score;
 use crate::Searcher;
 use crate::Term;
@@ -33,8 +34,48 @@ pub struct BM25Weight {
     average_fieldnorm: f32,
 }
 
+impl ScoringFunction for BM25Weight {
+    #[inline(always)]
+    fn score(&self, fieldnorm_id: u8, term_freq: u32) -> Score {
+        let norm = self.cache[fieldnorm_id as usize];
+        let term_freq = term_freq as f32;
+        self.weight * term_freq / (term_freq + norm)
+    }
+
+    fn explain(&self, fieldnorm_id: u8, term_freq: u32) -> Explanation {
+        // The explain format is directly copied from Lucene's.
+        // (So, Kudos to Lucene)
+
+        let score = self.score(fieldnorm_id, term_freq);
+
+        let norm = self.cache[fieldnorm_id as usize];
+        let term_freq = term_freq as f32;
+        let right_factor = term_freq / (term_freq + norm);
+
+        let mut tf_explanation = Explanation::new(
+            "freq / (freq + k1 * (1 - b + b * dl / avgdl))",
+            right_factor,
+        );
+
+        tf_explanation.add_const("freq, occurrences of term within document", term_freq);
+        tf_explanation.add_const("k1, term saturation parameter", K1);
+        tf_explanation.add_const("b, length normalization parameter", B);
+        tf_explanation.add_const(
+            "dl, length of field",
+            FieldNormReader::id_to_fieldnorm(fieldnorm_id) as f32,
+        );
+        tf_explanation.add_const("avgdl, average length of field", self.average_fieldnorm);
+
+        let mut explanation = Explanation::new("TermQuery, product of...", score);
+        explanation.add_detail(Explanation::new("(K1+1)", K1 + 1f32));
+        explanation.add_detail(self.idf_explain.clone());
+        explanation.add_detail(tf_explanation);
+        explanation
+    }
+}
+
 impl BM25Weight {
-    pub fn for_terms(searcher: &Searcher, terms: &[Term]) -> BM25Weight {
+    pub fn for_terms(searcher: &Searcher, terms: &[Term]) -> Box<dyn ScoringFunction> {
         assert!(!terms.is_empty(), "BM25 requires at least one term");
         let field = terms[0].field();
         for term in &terms[1..] {
@@ -75,7 +116,7 @@ impl BM25Weight {
                 .sum::<f32>();
             idf_explain = Explanation::new("idf", idf);
         }
-        BM25Weight::new(idf_explain, average_fieldnorm)
+        Box::new(BM25Weight::new(idf_explain, average_fieldnorm))
     }
 
     fn new(idf_explain: Explanation, average_fieldnorm: f32) -> BM25Weight {
@@ -86,44 +127,6 @@ impl BM25Weight {
             cache: compute_tf_cache(average_fieldnorm),
             average_fieldnorm,
         }
-    }
-
-    #[inline(always)]
-    pub fn score(&self, fieldnorm_id: u8, term_freq: u32) -> Score {
-        let norm = self.cache[fieldnorm_id as usize];
-        let term_freq = term_freq as f32;
-        self.weight * term_freq / (term_freq + norm)
-    }
-
-    pub fn explain(&self, fieldnorm_id: u8, term_freq: u32) -> Explanation {
-        // The explain format is directly copied from Lucene's.
-        // (So, Kudos to Lucene)
-
-        let score = self.score(fieldnorm_id, term_freq);
-
-        let norm = self.cache[fieldnorm_id as usize];
-        let term_freq = term_freq as f32;
-        let right_factor = term_freq / (term_freq + norm);
-
-        let mut tf_explanation = Explanation::new(
-            "freq / (freq + k1 * (1 - b + b * dl / avgdl))",
-            right_factor,
-        );
-
-        tf_explanation.add_const("freq, occurrences of term within document", term_freq);
-        tf_explanation.add_const("k1, term saturation parameter", K1);
-        tf_explanation.add_const("b, length normalization parameter", B);
-        tf_explanation.add_const(
-            "dl, length of field",
-            FieldNormReader::id_to_fieldnorm(fieldnorm_id) as f32,
-        );
-        tf_explanation.add_const("avgdl, average length of field", self.average_fieldnorm);
-
-        let mut explanation = Explanation::new("TermQuery, product of...", score);
-        explanation.add_detail(Explanation::new("(K1+1)", K1 + 1f32));
-        explanation.add_detail(self.idf_explain.clone());
-        explanation.add_detail(tf_explanation);
-        explanation
     }
 }
 
