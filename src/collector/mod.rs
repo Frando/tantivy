@@ -85,6 +85,7 @@ See the `custom_collector` example.
 
 */
 
+use crate::query::ScoringSettings;
 use crate::DocId;
 use crate::Result;
 use crate::Score;
@@ -149,6 +150,8 @@ pub trait Collector: Sync {
 
     /// Returns true iff the collector requires to compute scores for documents.
     fn requires_scoring(&self) -> bool;
+
+    // fn scoring_settings(&self) -> Option<Box<dyn ScoringSettings>>;
 
     /// Combines the fruit associated to the collection of each segments
     /// into one fruit.

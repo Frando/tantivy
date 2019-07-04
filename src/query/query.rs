@@ -1,6 +1,7 @@
 use super::Weight;
 use crate::core::searcher::Searcher;
 use crate::query::Explanation;
+use crate::query::ScoringSettings;
 use crate::Result;
 use crate::Term;
 use crate::{downcast_rs, DocAddress};
@@ -47,7 +48,11 @@ pub trait Query: QueryClone + downcast_rs::Downcast + fmt::Debug {
     /// can increase performances.
     ///
     /// See [`Weight`](./trait.Weight.html).
-    fn weight(&self, searcher: &Searcher, scoring_enabled: bool) -> Result<Box<dyn Weight>>;
+    fn weight(
+        &self,
+        searcher: &Searcher,
+        scoring: Option<ScoringSettings>,
+    ) -> Result<Box<dyn Weight>>;
 
     /// Returns an `Explanation` for the score of the document.
     fn explain(&self, searcher: &Searcher, doc_address: DocAddress) -> Result<Explanation> {
@@ -85,8 +90,12 @@ where
 }
 
 impl Query for Box<dyn Query> {
-    fn weight(&self, searcher: &Searcher, scoring_enabled: bool) -> Result<Box<dyn Weight>> {
-        self.as_ref().weight(searcher, scoring_enabled)
+    fn weight(
+        &self,
+        searcher: &Searcher,
+        scoring: Option<ScoringSettings>,
+    ) -> Result<Box<dyn Weight>> {
+        self.as_ref().weight(searcher, scoring)
     }
 
     fn count(&self, searcher: &Searcher) -> Result<usize> {

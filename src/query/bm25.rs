@@ -1,6 +1,6 @@
 use crate::fieldnorm::FieldNormReader;
 use crate::query::Explanation;
-use crate::query::ScoringFunction;
+use crate::query::{ScoringFunction, ScoringParams};
 use crate::Score;
 use crate::Searcher;
 use crate::Term;
@@ -33,6 +33,19 @@ pub struct BM25Weight {
     cache: [f32; 256],
     average_fieldnorm: f32,
 }
+
+pub struct BM25Params {
+    k1: f32,
+    b: f32,
+}
+
+impl Default for BM25Params {
+    fn default() -> BM25Params {
+        BM25Params { k1: 1.2, b: 0.75 }
+    }
+}
+
+impl ScoringParams for BM25Params {}
 
 impl ScoringFunction for BM25Weight {
     #[inline(always)]
@@ -75,7 +88,12 @@ impl ScoringFunction for BM25Weight {
 }
 
 impl BM25Weight {
-    pub fn for_terms(searcher: &Searcher, terms: &[Term]) -> Box<dyn ScoringFunction> {
+    pub fn for_terms(
+        searcher: &Searcher,
+        terms: &[Term],
+        params: Option<Box<dyn ScoringParams>>,
+    ) -> Box<dyn ScoringFunction> {
+        let params = params.unwrap_or_default();
         assert!(!terms.is_empty(), "BM25 requires at least one term");
         let field = terms[0].field();
         for term in &terms[1..] {

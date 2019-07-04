@@ -3,6 +3,7 @@ use crate::core::searcher::Searcher;
 use crate::error::TantivyError;
 use crate::query::bm25::BM25Weight;
 use crate::query::Query;
+use crate::query::ScoringSettings;
 use crate::query::Weight;
 use crate::schema::IndexRecordOption;
 use crate::schema::{Field, Term};
@@ -78,7 +79,11 @@ impl Query for PhraseQuery {
     /// Create the weight associated to a query.
     ///
     /// See [`Weight`](./trait.Weight.html).
-    fn weight(&self, searcher: &Searcher, scoring_enabled: bool) -> Result<Box<dyn Weight>> {
+    fn weight(
+        &self,
+        searcher: &Searcher,
+        scoring: Option<ScoringSettings>,
+    ) -> Result<Box<dyn Weight>> {
         let schema = searcher.schema();
         let field_entry = schema.get_field_entry(self.field);
         let has_positions = field_entry
@@ -94,10 +99,14 @@ impl Query for PhraseQuery {
             )));
         }
         let terms = self.phrase_terms();
-        let bm25_weight = BM25Weight::for_terms(searcher, &terms);
+        let scoring = scoring.unwrap_or_default();
+        let similarity_weight = scoring.scoringfunction(searcher, &terms, scoring.params);
 
-        let phrase_weight: PhraseWeight =
-            PhraseWeight::new(self.phrase_terms.clone(), bm25_weight, scoring_enabled);
+        let phrase_weight: PhraseWeight = PhraseWeight::new(
+            self.phrase_terms.clone(),
+            similarity_weight,
+            scoring.enabled,
+        );
         Ok(Box::new(phrase_weight))
     }
 

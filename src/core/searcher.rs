@@ -156,6 +156,7 @@ impl Searcher {
         executor: &Executor,
     ) -> Result<C::Fruit> {
         let scoring_enabled = collector.requires_scoring();
+        let scoring_options = collector.scoring_options();
         let weight = query.weight(self, scoring_enabled)?;
         let segment_readers = self.segment_readers();
         let fruits = executor.map(
